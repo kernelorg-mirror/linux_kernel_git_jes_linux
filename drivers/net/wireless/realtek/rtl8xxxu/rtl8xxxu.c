@@ -2342,6 +2342,7 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	ether_addr_copy(priv->mac_addr, efuse->mac_addr);
 
+#if 0
 	memcpy(priv->cck_tx_power_index_A, efuse->cck_tx_power_index_A,
 	       sizeof(priv->cck_tx_power_index_A));
 	memcpy(priv->cck_tx_power_index_B, efuse->cck_tx_power_index_B,
@@ -2352,7 +2353,6 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 	memcpy(priv->ht40_1s_tx_power_index_B, efuse->ht40_1s_tx_power_index_B,
 	       sizeof(priv->ht40_1s_tx_power_index_B));
 
-#if 0
 	memcpy(priv->ht20_tx_power_index_diff, efuse->ht20_tx_power_index_diff,
 	       sizeof(priv->ht20_tx_power_index_diff));
 	memcpy(priv->ofdm_tx_power_index_diff, efuse->ofdm_tx_power_index_diff,
