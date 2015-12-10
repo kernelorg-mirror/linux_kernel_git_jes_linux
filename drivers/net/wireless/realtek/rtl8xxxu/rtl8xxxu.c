@@ -2362,33 +2362,54 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8723bu_efuse *efuse = &priv->efuse_wifi.efuse8723bu;
+	int i;
 
 	if (efuse->rtl_id != cpu_to_le16(0x8129))
 		return -EINVAL;
 
 	ether_addr_copy(priv->mac_addr, efuse->mac_addr);
 
-#if 0
-	memcpy(priv->cck_tx_power_index_A, efuse->cck_tx_power_index_A,
-	       sizeof(priv->cck_tx_power_index_A));
-	memcpy(priv->cck_tx_power_index_B, efuse->cck_tx_power_index_B,
-	       sizeof(priv->cck_tx_power_index_B));
+	memcpy(priv->cck_tx_power_index_A, efuse->tx_power_index_A.cck_base,
+	       sizeof(efuse->tx_power_index_A.cck_base));
+	memcpy(priv->cck_tx_power_index_B, efuse->tx_power_index_B.cck_base,
+	       sizeof(efuse->tx_power_index_B.cck_base));
 
-	memcpy(priv->ht40_1s_tx_power_index_A, efuse->ht40_1s_tx_power_index_A,
-	       sizeof(priv->ht40_1s_tx_power_index_A));
-	memcpy(priv->ht40_1s_tx_power_index_B, efuse->ht40_1s_tx_power_index_B,
-	       sizeof(priv->ht40_1s_tx_power_index_B));
+	memcpy(priv->ht40_1s_tx_power_index_A,
+	       efuse->tx_power_index_A.ht40_base,
+	       sizeof(efuse->tx_power_index_A.ht40_base));
+	memcpy(priv->ht40_1s_tx_power_index_B,
+	       efuse->tx_power_index_B.ht40_base,
+	       sizeof(efuse->tx_power_index_B.ht40_base));
 
-	memcpy(priv->ht20_tx_power_index_diff, efuse->ht20_tx_power_index_diff,
-	       sizeof(priv->ht20_tx_power_index_diff));
-	memcpy(priv->ofdm_tx_power_index_diff, efuse->ofdm_tx_power_index_diff,
-	       sizeof(priv->ofdm_tx_power_index_diff));
+	priv->ofdm_tx_power_diff[0].a =
+		efuse->tx_power_index_A.ht20_ofdm_1s_diff.a;
+	priv->ofdm_tx_power_diff[0].b =
+		efuse->tx_power_index_B.ht20_ofdm_1s_diff.a;
 
-	memcpy(priv->ht40_max_power_offset, efuse->ht40_max_power_offset,
-	       sizeof(priv->ht40_max_power_offset));
-	memcpy(priv->ht20_max_power_offset, efuse->ht20_max_power_offset,
-	       sizeof(priv->ht20_max_power_offset));
-#endif
+	priv->ht20_tx_power_diff[0].a =
+		efuse->tx_power_index_A.ht20_ofdm_1s_diff.b;
+	priv->ht20_tx_power_diff[0].b =
+		efuse->tx_power_index_B.ht20_ofdm_1s_diff.b;
+
+	priv->ht40_tx_power_diff[0].a = 0;
+	priv->ht40_tx_power_diff[0].b = 0;
+
+	for (i = 1; i < RTL8723B_TX_COUNT; i++) {
+		priv->ofdm_tx_power_diff[i].a =
+			efuse->tx_power_index_A.pwr_diff[i - 1].ofdm;
+		priv->ofdm_tx_power_diff[i].b =
+			efuse->tx_power_index_B.pwr_diff[i - 1].ofdm;
+
+		priv->ht20_tx_power_diff[i].a =
+			efuse->tx_power_index_A.pwr_diff[i - 1].ht20;
+		priv->ht20_tx_power_diff[i].b =
+			efuse->tx_power_index_B.pwr_diff[i - 1].ht20;
+
+		priv->ht40_tx_power_diff[i].a =
+			efuse->tx_power_index_A.pwr_diff[i - 1].ht40;
+		priv->ht40_tx_power_diff[i].b =
+			efuse->tx_power_index_B.pwr_diff[i - 1].ht40;
+	}
 
 	priv->has_xtalk = 1;
 	priv->xtalk = priv->efuse_wifi.efuse8723bu.xtal_k & 0x3f;
