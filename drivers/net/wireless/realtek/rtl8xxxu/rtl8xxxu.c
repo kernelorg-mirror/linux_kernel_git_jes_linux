@@ -7343,7 +7343,6 @@ static int rtl8723bu_parse_rx_desc(struct rtl8xxxu_priv *priv,
 		(struct rtl8723bu_rx_desc *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
 	int drvinfo_sz, desc_shift;
-	int rx_type;
 
 	skb_pull(skb, sizeof(struct rtl8723bu_rx_desc));
 
@@ -7353,6 +7352,11 @@ static int rtl8723bu_parse_rx_desc(struct rtl8xxxu_priv *priv,
 	desc_shift = rx_desc->shift;
 	skb_pull(skb, drvinfo_sz + desc_shift);
 
+	if (rx_desc->rpt_sel) {
+		struct device *dev = &priv->udev->dev;
+		dev_dbg(dev, "%s: C2H packet\n", __func__);
+		return RX_TYPE_C2H;
+	}
 #if 0
 	if (rx_desc->phy_stats)
 		rtl8xxxu_rx_parse_phystats(priv, rx_status, rx_desc, phy_stats);
@@ -7375,15 +7379,7 @@ static int rtl8723bu_parse_rx_desc(struct rtl8xxxu_priv *priv,
 		rx_status->rate_idx = rx_desc->rxmcs;
 	}
 
-	if (rx_desc->rpt_sel) {
-		struct device *dev = &priv->udev->dev;
-		dev_dbg(dev, "%s: C2H packet\n", __func__);
-		rx_type = RX_TYPE_C2H;
-	} else {
-		rx_type = RX_TYPE_DATA_PKT;
-	}
-
-	return rx_type;
+	return RX_TYPE_DATA_PKT;
 }
 
 static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
