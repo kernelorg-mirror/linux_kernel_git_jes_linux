@@ -42,7 +42,7 @@
 
 #define DRIVER_NAME "rtl8xxxu"
 
-static int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE | RTL8XXXU_DEBUG_REG_WRITE;
+static int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE;
 static bool rtl8xxxu_ht40_2g;
 
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@redhat.com>");
@@ -1317,7 +1317,6 @@ static int rtl8xxxu_write8(struct rtl8xxxu_priv *priv, u16 addr, u8 val)
 
 	mutex_unlock(&priv->usb_buf_mutex);
 
-if (priv->rtlchip == 0x8723b)
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_WRITE)
 		dev_info(&udev->dev, "%s(%04x) = 0x%02x\n",
 			 __func__, addr, val);
@@ -1337,7 +1336,6 @@ static int rtl8xxxu_write16(struct rtl8xxxu_priv *priv, u16 addr, u16 val)
 			      RTW_USB_CONTROL_MSG_TIMEOUT);
 	mutex_unlock(&priv->usb_buf_mutex);
 
-if (priv->rtlchip == 0x8723b)
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_WRITE)
 		dev_info(&udev->dev, "%s(%04x) = 0x%04x\n",
 			 __func__, addr, val);
@@ -1357,7 +1355,6 @@ static int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val)
 			      RTW_USB_CONTROL_MSG_TIMEOUT);
 	mutex_unlock(&priv->usb_buf_mutex);
 
-if (priv->rtlchip == 0x8723b)
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_WRITE)
 		dev_info(&udev->dev, "%s(%04x) = 0x%08x\n",
 			 __func__, addr, val);
