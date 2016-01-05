@@ -42,7 +42,7 @@
 
 #define DRIVER_NAME "rtl8xxxu"
 
-static int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE | RTL8XXXU_DEBUG_REG_WRITE | RTL8XXXU_DEBUG_RFREG_WRITE;
+static int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE | RTL8XXXU_DEBUG_REG_WRITE;
 static bool rtl8xxxu_ht40_2g;
 
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@redhat.com>");
@@ -1455,7 +1455,6 @@ static int rtl8xxxu_write_rfreg(struct rtl8xxxu_priv *priv,
 	int ret, retval;
 	u32 dataaddr;
 
-if (priv->rtlchip == 0x8723b)
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_RFREG_WRITE)
 		dev_info(&priv->udev->dev, "%s(%02x) = 0x%06x\n",
 			 __func__, reg, data);
