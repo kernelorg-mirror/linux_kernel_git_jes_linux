@@ -42,7 +42,7 @@
 
 #define DRIVER_NAME "rtl8xxxu"
 
-static int rtl8xxxu_debug = 0; // RTL8XXXU_DEBUG_EFUSE | RTL8XXXU_DEBUG_REG_WRITE | RTL8XXXU_DEBUG_RFREG_WRITE;
+static int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE | RTL8XXXU_DEBUG_REG_WRITE | RTL8XXXU_DEBUG_RFREG_WRITE;
 static bool rtl8xxxu_ht40_2g;
 
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@redhat.com>");
