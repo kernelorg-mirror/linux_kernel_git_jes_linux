@@ -7802,10 +7802,12 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_EDCA_VO_PARAM, 0x002fa226);
 
 	/* Set data auto rate fallback retry count */
+#if 0
 	rtl8xxxu_write32(priv, REG_DARFRC, 0x00000000);
 	rtl8xxxu_write32(priv, REG_DARFRC + 4, 0x10080404);
 	rtl8xxxu_write32(priv, REG_RARFRC, 0x04030201);
 	rtl8xxxu_write32(priv, REG_RARFRC + 4, 0x08070605);
+#endif
 
 	val8 = rtl8xxxu_read8(priv, REG_FWHW_TXQ_CTRL);
 	val8 |= FWHW_TXQ_CTRL_AMPDU_RETRY;
@@ -7813,6 +7815,15 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	/*  Set ACK timeout */
 	rtl8xxxu_write8(priv, REG_ACKTO, 0x40);
+
+	if (priv->rtl_chip == RTL8192E) {
+		rtl8xxxu_write32(priv, REG_TDECTRL, 0x0000f430);
+		rtl8xxxu_write8(priv, REG_DWBCN1_CTRL_8723B, 0x06);
+		rtl8xxxu_write8(priv, REG_RXDMA_PRO_8723B, 0x06);
+		rtl8xxxu_write8(priv, REG_TRXDMA_CTRL, 0xb4);
+		rtl8xxxu_write8(priv, REG_RXDMA_PRO_8723B, 0x1e);
+		rtl8xxxu_write32(priv, REG_RXDMA_AGG_PG_TH, 0x00002006);
+	}
 
 	/*
 	 * Initialize beacon parameters
