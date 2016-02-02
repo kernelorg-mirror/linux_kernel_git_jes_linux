@@ -2007,14 +2007,12 @@ done:
 
 /*
  * This function checks the firmware status in card.
- *
- * The winner interface is also determined by this function.
  */
 static int
 mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 {
 	int ret = 0;
-	u32 firmware_stat, winner_status;
+	u32 firmware_stat;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	u32 tries;
@@ -2054,19 +2052,28 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 		}
 	}
 
-	if (ret) {
-		if (mwifiex_read_reg(adapter, reg->fw_status,
-				     &winner_status))
-			ret = -1;
-		else if (!winner_status) {
-			mwifiex_dbg(adapter, INFO,
-				    "PCI-E is the winner\n");
-			adapter->winner = 1;
-		} else {
-			mwifiex_dbg(adapter, ERROR,
-				    "PCI-E is not the winner <%#x,%d>, exit dnld\n",
-				    ret, adapter->winner);
-		}
+	return ret;
+}
+
+/* This function checks if WLAN is the winner.
+ */
+static int
+mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
+{
+	u32 winner = 0;
+	int ret = 0;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
+	if (mwifiex_read_reg(adapter, reg->fw_status, &winner)) {
+		ret = -1;
+	} else if (!winner) {
+		mwifiex_dbg(adapter, INFO, "PCI-E is the winner\n");
+		adapter->winner = 1;
+	} else {
+		mwifiex_dbg(adapter, ERROR,
+			    "PCI-E is not the winner <%#x,%d>, exit dnld\n",
+			    ret, adapter->winner);
 	}
 
 	return ret;
@@ -2075,20 +2082,28 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 /*
  * This function reads the interrupt status from card.
  */
-static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
+static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter,
+				     int msg_id)
 {
 	u32 pcie_ireg;
 	unsigned long flags;
+	struct pcie_service_card *card = adapter->card;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		return;
 
-	if (mwifiex_read_reg(adapter, PCIE_HOST_INT_STATUS, &pcie_ireg)) {
-		mwifiex_dbg(adapter, ERROR, "Read register failed\n");
-		return;
-	}
+	if (card->msix_enable && msg_id >= 0) {
+		pcie_ireg = BIT(msg_id);
+	} else {
+		if (mwifiex_read_reg(adapter, PCIE_HOST_INT_STATUS,
+				     &pcie_ireg)) {
+			mwifiex_dbg(adapter, ERROR, "Read register failed\n");
+			return;
+		}
 
-	if ((pcie_ireg != 0xFFFFFFFF) && (pcie_ireg)) {
+		if ((pcie_ireg == 0xFFFFFFFF) || !pcie_ireg)
+			return;
+
 
 		mwifiex_pcie_disable_host_int(adapter);
 
@@ -2099,21 +2114,24 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 				    "Write register failed\n");
 			return;
 		}
-		spin_lock_irqsave(&adapter->int_lock, flags);
-		adapter->int_status |= pcie_ireg;
-		spin_unlock_irqrestore(&adapter->int_lock, flags);
-
-		if (!adapter->pps_uapsd_mode &&
-		    adapter->ps_state == PS_STATE_SLEEP &&
-		    mwifiex_pcie_ok_to_access_hw(adapter)) {
-				/* Potentially for PCIe we could get other
-				 * interrupts like shared. Don't change power
-				 * state until cookie is set */
-				adapter->ps_state = PS_STATE_AWAKE;
-				adapter->pm_wakeup_fw_try = false;
-				del_timer(&adapter->wakeup_timer);
-		}
 	}
+
+	if (!adapter->pps_uapsd_mode &&
+	    adapter->ps_state == PS_STATE_SLEEP &&
+	    mwifiex_pcie_ok_to_access_hw(adapter)) {
+		/* Potentially for PCIe we could get other
+		 * interrupts like shared. Don't change power
+		 * state until cookie is set
+		 */
+		adapter->ps_state = PS_STATE_AWAKE;
+		adapter->pm_wakeup_fw_try = false;
+		del_timer(&adapter->wakeup_timer);
+	}
+
+	spin_lock_irqsave(&adapter->int_lock, flags);
+	adapter->int_status |= pcie_ireg;
+	spin_unlock_irqrestore(&adapter->int_lock, flags);
+	mwifiex_dbg(adapter, INTR, "ireg: 0x%08x\n", pcie_ireg);
 }
 
 /*
@@ -2124,19 +2142,20 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
  */
 static irqreturn_t mwifiex_pcie_interrupt(int irq, void *context)
 {
-	struct pci_dev *pdev = (struct pci_dev *)context;
+	struct mwifiex_msix_context *ctx = context;
+	struct pci_dev *pdev = ctx->dev;
 	struct pcie_service_card *card;
 	struct mwifiex_adapter *adapter;
 
 	if (!pdev) {
-		pr_debug("info: %s: pdev is NULL\n", (u8 *)pdev);
+		pr_err("info: %s: pdev is NULL\n", __func__);
 		goto exit;
 	}
 
 	card = pci_get_drvdata(pdev);
 	if (!card || !card->adapter) {
-		pr_debug("info: %s: card=%p adapter=%p\n", __func__, card,
-			 card ? card->adapter : NULL);
+		pr_err("info: %s: card=%p adapter=%p\n", __func__, card,
+		       card ? card->adapter : NULL);
 		goto exit;
 	}
 	adapter = card->adapter;
@@ -2144,7 +2163,11 @@ static irqreturn_t mwifiex_pcie_interrupt(int irq, void *context)
 	if (adapter->surprise_removed)
 		goto exit;
 
-	mwifiex_interrupt_status(adapter);
+	if (card->msix_enable)
+		mwifiex_interrupt_status(adapter, ctx->msg_id);
+	else
+		mwifiex_interrupt_status(adapter, -1);
+
 	mwifiex_queue_main_work(adapter);
 
 exit:
@@ -2164,7 +2187,7 @@ exit:
  * In case of Rx packets received, the packets are uploaded from card to
  * host and processed accordingly.
  */
-static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
+static int mwifiex_process_pcie_int(struct mwifiex_adapter *adapter)
 {
 	int ret;
 	u32 pcie_ireg;
@@ -2242,6 +2265,69 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		mwifiex_pcie_enable_host_int(adapter);
 
 	return 0;
+}
+
+static int mwifiex_process_msix_int(struct mwifiex_adapter *adapter)
+{
+	int ret;
+	u32 pcie_ireg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->int_lock, flags);
+	/* Clear out unused interrupts */
+	pcie_ireg = adapter->int_status;
+	adapter->int_status = 0;
+	spin_unlock_irqrestore(&adapter->int_lock, flags);
+
+	if (pcie_ireg & HOST_INTR_DNLD_DONE) {
+		mwifiex_dbg(adapter, INTR,
+			    "info: TX DNLD Done\n");
+		ret = mwifiex_pcie_send_data_complete(adapter);
+		if (ret)
+			return ret;
+	}
+	if (pcie_ireg & HOST_INTR_UPLD_RDY) {
+		mwifiex_dbg(adapter, INTR,
+			    "info: Rx DATA\n");
+		ret = mwifiex_pcie_process_recv_data(adapter);
+		if (ret)
+			return ret;
+	}
+	if (pcie_ireg & HOST_INTR_EVENT_RDY) {
+		mwifiex_dbg(adapter, INTR,
+			    "info: Rx EVENT\n");
+		ret = mwifiex_pcie_process_event_ready(adapter);
+		if (ret)
+			return ret;
+	}
+
+	if (pcie_ireg & HOST_INTR_CMD_DONE) {
+		if (adapter->cmd_sent) {
+			mwifiex_dbg(adapter, INTR,
+				    "info: CMD sent Interrupt\n");
+			adapter->cmd_sent = false;
+		}
+		/* Handle command response */
+		ret = mwifiex_pcie_process_cmd_complete(adapter);
+		if (ret)
+			return ret;
+	}
+
+	mwifiex_dbg(adapter, INTR,
+		    "info: cmd_sent=%d data_sent=%d\n",
+		    adapter->cmd_sent, adapter->data_sent);
+
+	return 0;
+}
+
+static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
+{
+	struct pcie_service_card *card = adapter->card;
+
+	if (card->msix_enable)
+		return mwifiex_process_msix_int(adapter);
+	else
+		return mwifiex_process_pcie_int(adapter);
 }
 
 /*
@@ -2473,50 +2559,44 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 
 	pci_set_master(pdev);
 
-	mwifiex_dbg(adapter, INFO,
-		    "try set_consistent_dma_mask(32)\n");
+	pr_notice("try set_consistent_dma_mask(32)\n");
 	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		mwifiex_dbg(adapter, ERROR,
-			    "set_dma_mask(32) failed\n");
+		pr_err("set_dma_mask(32) failed\n");
 		goto err_set_dma_mask;
 	}
 
 	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		mwifiex_dbg(adapter, ERROR,
-			    "set_consistent_dma_mask(64) failed\n");
+		pr_err("set_consistent_dma_mask(64) failed\n");
 		goto err_set_dma_mask;
 	}
 
 	ret = pci_request_region(pdev, 0, DRV_NAME);
 	if (ret) {
-		mwifiex_dbg(adapter, ERROR,
-			    "req_reg(0) error\n");
+		pr_err("req_reg(0) error\n");
 		goto err_req_region0;
 	}
 	card->pci_mmap = pci_iomap(pdev, 0, 0);
 	if (!card->pci_mmap) {
-		mwifiex_dbg(adapter, ERROR, "iomap(0) error\n");
+		pr_err("iomap(0) error\n");
 		ret = -EIO;
 		goto err_iomap0;
 	}
 	ret = pci_request_region(pdev, 2, DRV_NAME);
 	if (ret) {
-		mwifiex_dbg(adapter, ERROR, "req_reg(2) error\n");
+		pr_err("req_reg(2) error\n");
 		goto err_req_region2;
 	}
 	card->pci_mmap1 = pci_iomap(pdev, 2, 0);
 	if (!card->pci_mmap1) {
-		mwifiex_dbg(adapter, ERROR,
-			    "iomap(2) error\n");
+		pr_err("iomap(2) error\n");
 		ret = -EIO;
 		goto err_iomap2;
 	}
 
-	mwifiex_dbg(adapter, INFO,
-		    "PCI memory map Virt0: %p PCI memory map Virt2: %p\n",
-		    card->pci_mmap, card->pci_mmap1);
+	pr_notice("PCI memory map Virt0: %p PCI memory map Virt2: %p\n",
+		  card->pci_mmap, card->pci_mmap1);
 
 	card->cmdrsp_buf = NULL;
 	ret = mwifiex_pcie_create_txbd_ring(adapter);
@@ -2601,9 +2681,42 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 
 static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 {
-	int ret;
+	int ret, i, j;
 	struct pcie_service_card *card = adapter->card;
 	struct pci_dev *pdev = card->dev;
+
+	if (card->pcie.reg->msix_support) {
+		for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
+			card->msix_entries[i].entry = i;
+		ret = pci_enable_msix_exact(pdev, card->msix_entries,
+					    MWIFIEX_NUM_MSIX_VECTORS);
+		if (!ret) {
+			for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++) {
+				card->msix_ctx[i].dev = pdev;
+				card->msix_ctx[i].msg_id = i;
+
+				ret = request_irq(card->msix_entries[i].vector,
+						  mwifiex_pcie_interrupt, 0,
+						  "MWIFIEX_PCIE_MSIX",
+						  &card->msix_ctx[i]);
+				if (ret)
+					break;
+			}
+
+			if (ret) {
+				mwifiex_dbg(adapter, INFO, "request_irq fail: %d\n",
+					    ret);
+				for (j = 0; j < i; j++)
+					free_irq(card->msix_entries[j].vector,
+						 &card->msix_ctx[i]);
+				pci_disable_msix(pdev);
+			} else {
+				mwifiex_dbg(adapter, MSG, "MSIx enabled!");
+				card->msix_enable = 1;
+				return 0;
+			}
+		}
+	}
 
 	if (pci_enable_msi(pdev) != 0)
 		pci_disable_msi(pdev);
@@ -2612,8 +2725,10 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 
 	mwifiex_dbg(adapter, INFO, "msi_enable = %d\n", card->msi_enable);
 
+	card->share_irq_ctx.dev = pdev;
+	card->share_irq_ctx.msg_id = -1;
 	ret = request_irq(pdev->irq, mwifiex_pcie_interrupt, IRQF_SHARED,
-			  "MRVL_PCIE", pdev);
+			  "MRVL_PCIE", &card->share_irq_ctx);
 	if (ret) {
 		pr_err("request_irq failed: ret=%d\n", ret);
 		adapter->card = NULL;
@@ -2635,11 +2750,11 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 
 	/* save adapter pointer in card */
 	card->adapter = adapter;
+	adapter->dev = &pdev->dev;
 
 	if (mwifiex_pcie_request_irq(adapter))
 		return -1;
 
-	adapter->dev = &pdev->dev;
 	adapter->tx_buf_size = card->pcie.tx_buf_size;
 	adapter->mem_type_mapping_tbl = mem_type_mapping_tbl;
 	adapter->num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl);
@@ -2659,11 +2774,28 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg;
+	struct pci_dev *pdev = card->dev;
+	int i;
 
 	if (card) {
-		mwifiex_dbg(adapter, INFO,
-			    "%s(): calling free_irq()\n", __func__);
-		free_irq(card->dev->irq, card->dev);
+		if (card->msix_enable) {
+			for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
+				synchronize_irq(card->msix_entries[i].vector);
+
+			for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
+				free_irq(card->msix_entries[i].vector,
+					 &card->msix_ctx[i]);
+
+			card->msix_enable = 0;
+			pci_disable_msix(pdev);
+	       } else {
+			mwifiex_dbg(adapter, INFO,
+				    "%s(): calling free_irq()\n", __func__);
+		       free_irq(card->dev->irq, &card->share_irq_ctx);
+
+			if (card->msi_enable)
+				pci_disable_msi(pdev);
+	       }
 
 		reg = card->pcie.reg;
 		if (reg->sleep_cookie)
@@ -2681,6 +2813,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.init_if =			mwifiex_pcie_init,
 	.cleanup_if =			mwifiex_pcie_cleanup,
 	.check_fw_status =		mwifiex_check_fw_status,
+	.check_winner_status =          mwifiex_check_winner_status,
 	.prog_fw =			mwifiex_prog_fw_w_helper,
 	.register_dev =			mwifiex_register_dev,
 	.unregister_dev =		mwifiex_unregister_dev,
