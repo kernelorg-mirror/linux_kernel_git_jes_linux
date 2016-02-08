@@ -298,6 +298,7 @@ struct mwifiex_tid_tbl {
 #define WMM_HIGHEST_PRIORITY		7
 #define HIGH_PRIO_TID				7
 #define LOW_PRIO_TID				0
+#define MWIFIEX_WMM_DRV_DELAY_MAX 510
 
 struct mwifiex_wmm_desc {
 	struct mwifiex_tid_tbl tid_tbl_ptr[MAX_NUM_TID];
@@ -488,26 +489,6 @@ struct mwifiex_roc_cfg {
 	struct ieee80211_channel chan;
 };
 
-#define MWIFIEX_FW_DUMP_IDX		0xff
-#define MWIFIEX_DRV_INFO_IDX		20
-#define FW_DUMP_MAX_NAME_LEN		8
-#define FW_DUMP_HOST_READY		0xEE
-#define FW_DUMP_DONE			0xFF
-#define FW_DUMP_READ_DONE		0xFE
-
-struct memory_type_mapping {
-	u8 mem_name[FW_DUMP_MAX_NAME_LEN];
-	u8 *mem_ptr;
-	u32 mem_size;
-	u8 done_flag;
-};
-
-enum rdwr_status {
-	RDWR_STATUS_SUCCESS = 0,
-	RDWR_STATUS_FAILURE = 1,
-	RDWR_STATUS_DONE = 2
-};
-
 enum mwifiex_iface_work_flags {
 	MWIFIEX_IFACE_WORK_DEVICE_DUMP,
 	MWIFIEX_IFACE_WORK_CARD_RESET,
@@ -674,6 +655,8 @@ struct mwifiex_private {
 	struct mwifiex_ds_mem_rw mem_rw;
 	struct sk_buff_head bypass_txq;
 	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
+	u8 assoc_resp_ht_param;
+	bool ht_param_present;
 };
 
 

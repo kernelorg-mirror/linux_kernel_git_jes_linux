@@ -37,17 +37,6 @@ static struct mwifiex_if_ops pcie_ops;
 
 static struct semaphore add_remove_card_sem;
 
-static struct memory_type_mapping mem_type_mapping_tbl[] = {
-	{"ITCM", NULL, 0, 0xF0},
-	{"DTCM", NULL, 0, 0xF1},
-	{"SQRAM", NULL, 0, 0xF2},
-	{"IRAM", NULL, 0, 0xF3},
-	{"APU", NULL, 0, 0xF4},
-	{"CIU", NULL, 0, 0xF5},
-	{"ICU", NULL, 0, 0xF6},
-	{"MAC", NULL, 0, 0xF7},
-};
-
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		       size_t size, int flags)
@@ -206,6 +195,8 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
 		card->pcie.tx_buf_size = data->tx_buf_size;
 		card->pcie.can_dump_fw = data->can_dump_fw;
+		card->pcie.mem_type_mapping_tbl = data->mem_type_mapping_tbl;
+		card->pcie.num_mem_types = data->num_mem_types;
 		card->pcie.can_ext_scan = data->can_ext_scan;
 	}
 
@@ -323,6 +314,8 @@ static int mwifiex_read_reg(struct mwifiex_adapter *adapter, int reg, u32 *data)
 	struct pcie_service_card *card = adapter->card;
 
 	*data = ioread32(card->pci_mmap1 + reg);
+	if (*data == 0xffffffff)
+		return 0xffffffff;
 
 	return 0;
 }
@@ -2364,10 +2357,15 @@ mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
 {
 	int ret, tries;
 	u8 ctrl_data;
+	u32 fw_status;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl, FW_DUMP_HOST_READY);
+	if (mwifiex_read_reg(adapter, reg->fw_status, &fw_status))
+		return RDWR_STATUS_FAILURE;
+
+	ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl,
+				reg->fw_dump_host_ready);
 	if (ret) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PCIE write err\n");
@@ -2380,11 +2378,11 @@ mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
 			return RDWR_STATUS_SUCCESS;
 		if (doneflag && ctrl_data == doneflag)
 			return RDWR_STATUS_DONE;
-		if (ctrl_data != FW_DUMP_HOST_READY) {
+		if (ctrl_data != reg->fw_dump_host_ready) {
 			mwifiex_dbg(adapter, WARN,
 				    "The ctrl reg was changed, re-try again!\n");
 			ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl,
-						FW_DUMP_HOST_READY);
+						reg->fw_dump_host_ready);
 			if (ret) {
 				mwifiex_dbg(adapter, ERROR,
 					    "PCIE write err\n");
@@ -2404,7 +2402,8 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *creg = card->pcie.reg;
 	unsigned int reg, reg_start, reg_end;
-	u8 *dbg_ptr, *end_ptr, dump_num, idx, i, read_reg, doneflag = 0;
+	u8 *dbg_ptr, *end_ptr, *tmp_ptr, fw_dump_num, dump_num;
+	u8 idx, i, read_reg, doneflag = 0;
 	enum rdwr_status stat;
 	u32 memory_size;
 	int ret;
@@ -2412,8 +2411,9 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 	if (!card->pcie.can_dump_fw)
 		return;
 
-	for (idx = 0; idx < ARRAY_SIZE(mem_type_mapping_tbl); idx++) {
-		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
+	for (idx = 0; idx < adapter->num_mem_types; idx++) {
+		struct memory_type_mapping *entry =
+				&adapter->mem_type_mapping_tbl[idx];
 
 		if (entry->mem_ptr) {
 			vfree(entry->mem_ptr);
@@ -2422,7 +2422,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 		entry->mem_size = 0;
 	}
 
-	mwifiex_dbg(adapter, DUMP, "== mwifiex firmware dump start ==\n");
+	mwifiex_dbg(adapter, MSG, "== mwifiex firmware dump start ==\n");
 
 	/* Read the number of the memories which will dump */
 	stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
@@ -2430,28 +2430,38 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 		return;
 
 	reg = creg->fw_dump_start;
-	mwifiex_read_reg_byte(adapter, reg, &dump_num);
+	mwifiex_read_reg_byte(adapter, reg, &fw_dump_num);
+
+	/* W8997 chipset firmware dump will be restore in single region*/
+	if (fw_dump_num == 0)
+		dump_num = 1;
+	else
+		dump_num = fw_dump_num;
 
 	/* Read the length of every memory which will dump */
 	for (idx = 0; idx < dump_num; idx++) {
-		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
-
-		stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
-		if (stat == RDWR_STATUS_FAILURE)
-			return;
-
+		struct memory_type_mapping *entry =
+				&adapter->mem_type_mapping_tbl[idx];
 		memory_size = 0;
-		reg = creg->fw_dump_start;
-		for (i = 0; i < 4; i++) {
-			mwifiex_read_reg_byte(adapter, reg, &read_reg);
-			memory_size |= (read_reg << (i * 8));
+		if (fw_dump_num != 0) {
+			stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
+			if (stat == RDWR_STATUS_FAILURE)
+				return;
+
+			reg = creg->fw_dump_start;
+			for (i = 0; i < 4; i++) {
+				mwifiex_read_reg_byte(adapter, reg, &read_reg);
+				memory_size |= (read_reg << (i * 8));
 			reg++;
+			}
+		} else {
+			memory_size = MWIFIEX_FW_DUMP_MAX_MEMSIZE;
 		}
 
 		if (memory_size == 0) {
 			mwifiex_dbg(adapter, MSG, "Firmware dump Finished!\n");
 			ret = mwifiex_write_reg(adapter, creg->fw_dump_ctrl,
-						FW_DUMP_READ_DONE);
+						creg->fw_dump_read_done);
 			if (ret) {
 				mwifiex_dbg(adapter, ERROR, "PCIE write err\n");
 				return;
@@ -2486,11 +2496,21 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 				mwifiex_read_reg_byte(adapter, reg, dbg_ptr);
 				if (dbg_ptr < end_ptr) {
 					dbg_ptr++;
-				} else {
-					mwifiex_dbg(adapter, ERROR,
-						    "Allocated buf not enough\n");
-					return;
+					continue;
 				}
+				mwifiex_dbg(adapter, ERROR,
+					    "pre-allocated buf not enough\n");
+				tmp_ptr =
+					vzalloc(memory_size + MWIFIEX_SIZE_4K);
+				if (!tmp_ptr)
+					return;
+				memcpy(tmp_ptr, entry->mem_ptr, memory_size);
+				vfree(entry->mem_ptr);
+				entry->mem_ptr = tmp_ptr;
+				tmp_ptr = NULL;
+				dbg_ptr = entry->mem_ptr + memory_size;
+				memory_size += MWIFIEX_SIZE_4K;
+				end_ptr = entry->mem_ptr + memory_size;
 			}
 
 			if (stat != RDWR_STATUS_DONE)
@@ -2502,7 +2522,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 			break;
 		} while (true);
 	}
-	mwifiex_dbg(adapter, DUMP, "== mwifiex firmware dump end ==\n");
+	mwifiex_dbg(adapter, MSG, "== mwifiex firmware dump end ==\n");
 }
 
 static void mwifiex_pcie_device_dump_work(struct mwifiex_adapter *adapter)
@@ -2756,8 +2776,8 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		return -1;
 
 	adapter->tx_buf_size = card->pcie.tx_buf_size;
-	adapter->mem_type_mapping_tbl = mem_type_mapping_tbl;
-	adapter->num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl);
+	adapter->mem_type_mapping_tbl = card->pcie.mem_type_mapping_tbl;
+	adapter->num_mem_types = card->pcie.num_mem_types;
 	strcpy(adapter->fw_name, card->pcie.firmware);
 	adapter->ext_scan = card->pcie.can_ext_scan;
 
