@@ -3752,6 +3752,11 @@ static void rtl8723au_init_phy_bb(struct rtl8xxxu_priv *priv)
 	if (priv->rtl_chip == RTL8188C && priv->hi_pa &&
 	    priv->vendor_umc && priv->chip_cut == 1)
 		rtl8xxxu_write8(priv, REG_OFDM0_AGC_PARM1 + 2, 0x50);
+
+	if (priv->hi_pa)
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_highpa_table);
+	else
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_standard_table);
 }
 
 static void rtl8723bu_init_phy_bb(struct rtl8xxxu_priv *priv)
@@ -3773,6 +3778,8 @@ static void rtl8723bu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_SYS_FUNC, 0xe3);
 	rtl8xxxu_write8(priv, REG_AFE_XTAL_CTRL + 1, 0x80);
 	rtl8xxxu_init_phy_regs(priv, rtl8723b_phy_1t_init_table);
+
+	rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_8723bu_table);
 }
 
 static void rtl8192eu_init_phy_bb(struct rtl8xxxu_priv *priv)
@@ -3795,6 +3802,11 @@ static void rtl8192eu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	val8 = RF_ENABLE | RF_RSTB | RF_SDMRSTB;
 	rtl8xxxu_write8(priv, REG_RF_CTRL, val8);
 	rtl8xxxu_init_phy_regs(priv, rtl8192eu_phy_init_table);
+
+	if (priv->hi_pa)
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_8192eu_highpa_table);
+	else
+		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_8192eu_std_table);
 }
 
 /*
@@ -3806,20 +3818,6 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	u32 val32;
 
 	priv->fops->init_phy_bb(priv);
-
-	if (priv->rtl_chip == RTL8723B)
-		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_8723bu_table);
-	else if (priv->rtl_chip == RTL8192E) {
-		if (priv->hi_pa)
-			rtl8xxxu_init_phy_regs(priv,
-					       rtl8xxx_agc_8192eu_highpa_table);
-		else
-			rtl8xxxu_init_phy_regs(priv,
-					       rtl8xxx_agc_8192eu_std_table);
-	} else if (priv->hi_pa)
-		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_highpa_table);
-	else
-		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_standard_table);
 
 	if (priv->tx_paths == 1 && priv->rx_paths == 2) {
 		/*
