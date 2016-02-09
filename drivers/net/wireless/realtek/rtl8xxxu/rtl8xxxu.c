@@ -6782,7 +6782,7 @@ static int rtl8723b_emu_to_active(struct rtl8xxxu_priv *priv)
 	u32 val32;
 	int count, ret = 0;
 
-	/* 0x20[0] = 1 enable LDOA12 MACRO block for all interface*/
+	/* 0x20[0] = 1 enable LDOA12 MACRO block for all interface */
 	val8 = rtl8xxxu_read8(priv, REG_LDOA15_CTRL);
 	val8 |= LDOA15_ENABLE;
 	rtl8xxxu_write8(priv, REG_LDOA15_CTRL, val8);
@@ -6799,12 +6799,12 @@ static int rtl8723b_emu_to_active(struct rtl8xxxu_priv *priv)
 	val8 &= ~SYS_ISO_ANALOG_IPS;
 	rtl8xxxu_write8(priv, REG_SYS_ISO_CTRL, val8);
 
-	/* disable SW LPS 0x04[10]= 0 */
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-	val8 &= ~BIT(2);
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+	/* Disable SW LPS 0x04[10]= 0 */
+	val32 = rtl8xxxu_read8(priv, REG_APS_FSMCO);
+	val32 &= ~APS_FSMCO_SW_LPS;
+	rtl8xxxu_write32(priv, REG_APS_FSMCO, val32);
 
-	/* wait till 0x04[17] = 1 power ready*/
+	/* Wait until 0x04[17] = 1 power ready */
 	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
 		val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
 		if (val32 & BIT(17))
@@ -6820,31 +6820,25 @@ static int rtl8723b_emu_to_active(struct rtl8xxxu_priv *priv)
 
 	/* We should be able to optimize the following three entries into one */
 
-	/* release WLON reset 0x04[16]= 1*/
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 2);
-	val8 |= BIT(0);
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 2, val8);
+	/* Release WLON reset 0x04[16]= 1*/
+	val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
+	val32 |= APS_FSMCO_WLON_RESET;
+	rtl8xxxu_write32(priv, REG_APS_FSMCO, val32);
 
-	/* disable HWPDN 0x04[15]= 0*/
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-	val8 &= ~BIT(7);
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+	/* Disable HWPDN 0x04[15]= 0*/
+	val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
+	val32 &= ~APS_FSMCO_HW_POWERDOWN;
+	rtl8xxxu_write32(priv, REG_APS_FSMCO, val32);
 
-	/* disable WL suspend*/
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-	val8 &= ~(BIT(3) | BIT(4));
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+	/* Disable WL suspend*/
+	val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
+	val32 &= ~(APS_FSMCO_HW_SUSPEND | APS_FSMCO_PCIE);
+	rtl8xxxu_write32(priv, REG_APS_FSMCO, val32);
 
-	/* set, then poll until 0 */
-#if 0
+	/* Set, then poll until 0 */
 	val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
 	val32 |= APS_FSMCO_MAC_ENABLE;
 	rtl8xxxu_write32(priv, REG_APS_FSMCO, val32);
-#else
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-	val8 |= (APS_FSMCO_MAC_ENABLE >> 8);
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
-#endif
 
 	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
 		val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
