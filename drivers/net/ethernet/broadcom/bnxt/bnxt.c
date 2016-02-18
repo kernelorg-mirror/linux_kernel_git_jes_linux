@@ -1490,10 +1490,11 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 
 			last = tx_buf->nr_frags;
 			j += 2;
-			for (k = 0; k < last; k++, j = NEXT_TX(j)) {
+			for (k = 0; k < last; k++, j++) {
+				int ring_idx = j & bp->tx_ring_mask;
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[k];
 
-				tx_buf = &txr->tx_buf_ring[j];
+				tx_buf = &txr->tx_buf_ring[ring_idx];
 				dma_unmap_page(
 					&pdev->dev,
 					dma_unmap_addr(tx_buf, mapping),
@@ -3406,7 +3407,7 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 	struct hwrm_ring_free_output *resp = bp->hwrm_cmd_resp_addr;
 	u16 error_code;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_FREE, -1, -1);
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_FREE, cmpl_ring_id, -1);
 	req.ring_type = ring_type;
 	req.ring_id = cpu_to_le16(ring->fw_ring_id);
 
@@ -4819,8 +4820,6 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 		stats->multicast += le64_to_cpu(hw_stats->rx_mcast_pkts);
 
-		stats->rx_dropped += le64_to_cpu(hw_stats->rx_drop_pkts);
-
 		stats->tx_dropped += le64_to_cpu(hw_stats->tx_drop_pkts);
 	}
 
@@ -5371,9 +5370,16 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int bnxt_setup_tc(struct net_device *dev, u8 tc)
+static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
+			 struct tc_to_netdev *ntc)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	u8 tc;
+
+	if (handle != TC_H_ROOT || ntc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	tc = ntc->tc;
 
 	if (tc > bp->max_tc) {
 		netdev_err(dev, "too many traffic classes requested: %d Max supported is %d\n",

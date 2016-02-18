@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 
+#include <net/addrconf.h>
 #include <net/ndisc.h>
 #include <net/protocol.h>
 #include <net/transp_v6.h>
@@ -75,49 +76,6 @@ static u32 udp6_ehashfn(const struct net *net,
 
 	return __inet6_ehashfn(lhash, lport, fhash, fport,
 			       udp_ipv6_hash_secret + net_hash_mix(net));
-}
-
-/* match_wildcard == true:  IPV6_ADDR_ANY equals to any IPv6 addresses if IPv6
- *                          only, and any IPv4 addresses if not IPv6 only
- * match_wildcard == false: addresses must be exactly the same, i.e.
- *                          IPV6_ADDR_ANY only equals to IPV6_ADDR_ANY,
- *                          and 0.0.0.0 equals to 0.0.0.0 only
- */
-int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
-			 bool match_wildcard)
-{
-	const struct in6_addr *sk2_rcv_saddr6 = inet6_rcv_saddr(sk2);
-	int sk2_ipv6only = inet_v6_ipv6only(sk2);
-	int addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
-	int addr_type2 = sk2_rcv_saddr6 ? ipv6_addr_type(sk2_rcv_saddr6) : IPV6_ADDR_MAPPED;
-
-	/* if both are mapped, treat as IPv4 */
-	if (addr_type == IPV6_ADDR_MAPPED && addr_type2 == IPV6_ADDR_MAPPED) {
-		if (!sk2_ipv6only) {
-			if (sk->sk_rcv_saddr == sk2->sk_rcv_saddr)
-				return 1;
-			if (!sk->sk_rcv_saddr || !sk2->sk_rcv_saddr)
-				return match_wildcard;
-		}
-		return 0;
-	}
-
-	if (addr_type == IPV6_ADDR_ANY && addr_type2 == IPV6_ADDR_ANY)
-		return 1;
-
-	if (addr_type2 == IPV6_ADDR_ANY && match_wildcard &&
-	    !(sk2_ipv6only && addr_type == IPV6_ADDR_MAPPED))
-		return 1;
-
-	if (addr_type == IPV6_ADDR_ANY && match_wildcard &&
-	    !(ipv6_only_sock(sk) && addr_type2 == IPV6_ADDR_MAPPED))
-		return 1;
-
-	if (sk2_rcv_saddr6 &&
-	    ipv6_addr_equal(&sk->sk_v6_rcv_saddr, sk2_rcv_saddr6))
-		return 1;
-
-	return 0;
 }
 
 static u32 udp6_portaddr_hash(const struct net *net,
@@ -257,6 +215,7 @@ static struct sock *udp6_lib_lookup2(struct net *net,
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
 	int score, badness, matches = 0, reuseport = 0;
+	bool select_ok = true;
 	u32 hash = 0;
 
 begin:
@@ -270,14 +229,18 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				struct sock *sk2;
 				hash = udp6_ehashfn(net, daddr, hnum,
 						    saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash, skb,
-							    sizeof(struct udphdr));
-				if (sk2) {
-					result = sk2;
-					goto found;
+				if (select_ok) {
+					struct sock *sk2;
+
+					sk2 = reuseport_select_sock(sk, hash, skb,
+							sizeof(struct udphdr));
+					if (sk2) {
+						result = sk2;
+						select_ok = false;
+						goto found;
+					}
 				}
 				matches = 1;
 			}
@@ -321,6 +284,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 	unsigned int hash2, slot2, slot = udp_hashfn(net, hnum, udptable->mask);
 	struct udp_hslot *hslot2, *hslot = &udptable->hash[slot];
 	int score, badness, matches = 0, reuseport = 0;
+	bool select_ok = true;
 	u32 hash = 0;
 
 	rcu_read_lock();
@@ -358,14 +322,18 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				struct sock *sk2;
 				hash = udp6_ehashfn(net, daddr, hnum,
 						    saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash, skb,
+				if (select_ok) {
+					struct sock *sk2;
+
+					sk2 = reuseport_select_sock(sk, hash, skb,
 							sizeof(struct udphdr));
-				if (sk2) {
-					result = sk2;
-					goto found;
+					if (sk2) {
+						result = sk2;
+						select_ok = false;
+						goto found;
+					}
 				}
 				matches = 1;
 			}

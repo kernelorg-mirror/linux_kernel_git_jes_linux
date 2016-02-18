@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -20,10 +20,10 @@
 
 #include "main.h"
 
-#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/if_ether.h>
 #include <linux/jhash.h>
+#include <linux/kref.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/stddef.h>
@@ -38,7 +38,6 @@ int batadv_originator_init(struct batadv_priv *bat_priv);
 void batadv_originator_free(struct batadv_priv *bat_priv);
 void batadv_purge_orig_ref(struct batadv_priv *bat_priv);
 void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node);
-void batadv_orig_node_free_ref_now(struct batadv_orig_node *orig_node);
 struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 					      const u8 *addr);
 struct batadv_hardif_neigh_node *
@@ -116,7 +115,7 @@ batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
 		if (!batadv_compare_eth(orig_node, data))
 			continue;
 
-		if (!atomic_inc_not_zero(&orig_node->refcount))
+		if (!kref_get_unless_zero(&orig_node->refcount))
 			continue;
 
 		orig_node_tmp = orig_node;

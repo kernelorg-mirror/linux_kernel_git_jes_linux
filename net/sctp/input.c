@@ -874,6 +874,9 @@ void sctp_hash_transport(struct sctp_transport *t)
 {
 	struct sctp_hash_cmp_arg arg;
 
+	if (t->asoc->temp)
+		return;
+
 	arg.ep = t->asoc->ep;
 	arg.paddr = &t->ipaddr;
 	arg.net   = sock_net(t->asoc->base.sk);
@@ -886,6 +889,9 @@ reinsert:
 
 void sctp_unhash_transport(struct sctp_transport *t)
 {
+	if (t->asoc->temp)
+		return;
+
 	rhashtable_remove_fast(&sctp_transport_hashtable, &t->node,
 			       sctp_hash_params);
 }
@@ -929,15 +935,20 @@ static struct sctp_association *__sctp_lookup_association(
 					struct sctp_transport **pt)
 {
 	struct sctp_transport *t;
+	struct sctp_association *asoc = NULL;
 
 	t = sctp_addrs_lookup_transport(net, local, peer);
-	if (!t || t->dead || t->asoc->temp)
-		return NULL;
+	if (!t || !sctp_transport_hold(t))
+		goto out;
 
-	sctp_association_hold(t->asoc);
+	asoc = t->asoc;
+	sctp_association_hold(asoc);
 	*pt = t;
 
-	return t->asoc;
+	sctp_transport_put(t);
+
+out:
+	return asoc;
 }
 
 /* Look up an association. protected by RCU read lock */
