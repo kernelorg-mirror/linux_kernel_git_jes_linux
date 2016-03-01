@@ -153,7 +153,6 @@ enum i40e_dyn_idx_t {
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 #define I40E_MIN_DESC_PENDING	4
 
-#define I40E_TX_FLAGS_CSUM		BIT(0)
 #define I40E_TX_FLAGS_HW_VLAN		BIT(1)
 #define I40E_TX_FLAGS_SW_VLAN		BIT(2)
 #define I40E_TX_FLAGS_TSO		BIT(3)
@@ -202,6 +201,7 @@ struct i40e_tx_queue_stats {
 	u64 tx_done_old;
 	u64 tx_linearize;
 	u64 tx_force_wb;
+	u64 tx_lost_interrupt;
 };
 
 struct i40e_rx_queue_stats {
@@ -274,7 +274,6 @@ struct i40e_ring {
 
 	u16 flags;
 #define I40E_TXR_FLAGS_WB_ON_ITR	BIT(0)
-#define I40E_TXR_FLAGS_OUTER_UDP_CSUM	BIT(1)
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;
@@ -326,7 +325,7 @@ void i40evf_free_tx_resources(struct i40e_ring *tx_ring);
 void i40evf_free_rx_resources(struct i40e_ring *rx_ring);
 int i40evf_napi_poll(struct napi_struct *napi, int budget);
 void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
-u32 i40evf_get_tx_pending(struct i40e_ring *ring);
+u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw);
 
 /**
  * i40e_get_head - Retrieve head from head writeback
