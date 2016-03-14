@@ -3493,7 +3493,7 @@ exit:
 static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 {
 	int pages, remainder, i, ret;
-	u8 val8, sys_func;
+	u8 val8;
 	u16 val16;
 	u32 val32;
 	u8 *fwptr;
