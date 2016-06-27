@@ -1446,6 +1446,7 @@ void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			     bool short_preamble, bool ampdu_enable,
 			     u32 rts_rate);
 
+extern struct rtl8xxxu_fileops rtl8188eu_fops;
 extern struct rtl8xxxu_fileops rtl8192cu_fops;
 extern struct rtl8xxxu_fileops rtl8192eu_fops;
 extern struct rtl8xxxu_fileops rtl8723au_fops;

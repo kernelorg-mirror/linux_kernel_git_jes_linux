@@ -54,6 +54,7 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_A.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B_NoBT.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8188eufw.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_A.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_TMSC.bin");
@@ -6212,6 +6213,8 @@ static const struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xb720, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723bu_fops},
 #ifdef CONFIG_RTL8XXXU_UNTESTED
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8179, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188eu_fops},
 /* Still supported by rtlwifi */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8176, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
