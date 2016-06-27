@@ -92,8 +92,90 @@ static int rtl8188eu_load_firmware(struct rtl8xxxu_priv *priv)
 	return ret;
 }
 
+static int rtl8188e_emu_to_active(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	u32 val32;
+	u16 val16;
+	int count, ret = 0;
+
+	/* wait till 0x04[17] = 1 power ready*/
+	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
+		val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
+		if (val32 & BIT(17))
+			break;
+
+		udelay(10);
+	}
+
+	if (!count) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	/* reset baseband */
+	val8 = rtl8xxxu_read8(priv, REG_SYS_FUNC);
+	val8 &= ~(SYS_FUNC_BBRSTB | SYS_FUNC_BB_GLB_RSTN);
+	rtl8xxxu_write8(priv, REG_SYS_FUNC, val8);
+
+	/*0x24[23] = 2b'01 schmit trigger */
+	val32 = rtl8xxxu_read32(priv, REG_AFE_XTAL_CTRL);
+	val32 |= BIT(23);
+	rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, val32);
+
+	/* 0x04[15] = 0 disable HWPDN (control by DRV)*/
+	val16 = rtl8xxxu_read16(priv, REG_APS_FSMCO);
+	val16 &= ~APS_FSMCO_HW_POWERDOWN;
+	rtl8xxxu_write16(priv, REG_APS_FSMCO, val16);
+
+	/*0x04[12:11] = 2b'00 disable WL suspend*/
+	val16 = rtl8xxxu_read16(priv, REG_APS_FSMCO);
+	val16 &= ~(APS_FSMCO_HW_SUSPEND | APS_FSMCO_PCIE);
+	rtl8xxxu_write16(priv, REG_APS_FSMCO, val16);
+
+	/* set, then poll until 0 */
+	val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
+	val32 |= APS_FSMCO_MAC_ENABLE;
+	rtl8xxxu_write32(priv, REG_APS_FSMCO, val32);
+
+	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
+		val32 = rtl8xxxu_read32(priv, REG_APS_FSMCO);
+		if ((val32 & APS_FSMCO_MAC_ENABLE) == 0) {
+			ret = 0;
+			break;
+		}
+		udelay(10);
+	}
+
+	if (!count) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	/* LDO normal mode*/
+	val8 = rtl8xxxu_read8(priv, REG_LPLDO_CTRL);
+	val8 &= ~BIT(4);
+	rtl8xxxu_write8(priv, REG_LPLDO_CTRL, val8);
+
+exit:
+	return ret;
+}
+
+static int rtl8188eu_power_on(struct rtl8xxxu_priv *priv)
+{
+	int ret;
+
+	ret = rtl8188e_emu_to_active(priv);
+	if (ret)
+		goto exit;
+
+exit:
+	return ret;
+}
+
 struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.parse_efuse = rtl8188eu_parse_efuse,
 	.load_firmware = rtl8188eu_load_firmware,
+	.power_on = rtl8188eu_power_on,
 	.reset_8051 = rtl8xxxu_reset_8051,
 };
