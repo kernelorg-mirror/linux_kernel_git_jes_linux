@@ -2097,6 +2097,7 @@ int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name)
 	switch (signature & 0xfff0) {
 	case 0x92e0:
 	case 0x92c0:
+	case 0x88e0:
 	case 0x88c0:
 	case 0x5300:
 	case 0x2300:
