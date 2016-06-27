@@ -42,6 +42,40 @@
 
 static int rtl8188eu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
+	struct rtl8188eu_efuse *efuse = &priv->efuse_wifi.efuse8188eu;
+	int i;
+
+	if (efuse->rtl_id != cpu_to_le16(0x8129))
+		return -EINVAL;
+
+	ether_addr_copy(priv->mac_addr, efuse->mac_addr);
+
+	memcpy(priv->cck_tx_power_index_A, efuse->cck_tx_power_index_A,
+	       sizeof(efuse->cck_tx_power_index_A));
+	memcpy(priv->cck_tx_power_index_B, efuse->cck_tx_power_index_B,
+	       sizeof(efuse->cck_tx_power_index_B));
+
+	memcpy(priv->ht40_1s_tx_power_index_A,
+	       priv->efuse_wifi.efuse8188eu.ht40_1s_tx_power_index_A,
+	       sizeof(priv->ht40_1s_tx_power_index_A));
+	memcpy(priv->ht40_1s_tx_power_index_B,
+	       priv->efuse_wifi.efuse8188eu.ht40_1s_tx_power_index_B,
+	       sizeof(priv->ht40_1s_tx_power_index_B));
+
+	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
+	dev_info(&priv->udev->dev, "Product: %.11s\n", efuse->device_name);
+	dev_info(&priv->udev->dev, "Serial: %.11s\n", efuse->serial);
+
+	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
+		unsigned char *raw = priv->efuse_wifi.raw;
+
+		dev_info(&priv->udev->dev,
+			 "%s: dumping efuse (0x%02zx bytes):\n",
+			 __func__, sizeof(struct rtl8188eu_efuse));
+		for (i = 0; i < sizeof(struct rtl8188eu_efuse); i += 8)
+			dev_info(&priv->udev->dev, "%02x: %8ph\n", i, &raw[i]);
+	}
+
 	return 0;
 }
 
