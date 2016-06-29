@@ -172,6 +172,7 @@ exit:
 
 static int rtl8188eu_power_on(struct rtl8xxxu_priv *priv)
 {
+	u16 val16;
 	int ret;
 
 	rtl8188e_disabled_to_emu(priv);
@@ -179,6 +180,21 @@ static int rtl8188eu_power_on(struct rtl8xxxu_priv *priv)
 	ret = rtl8188e_emu_to_active(priv);
 	if (ret)
 		goto exit;
+
+	/*
+	 * Enable MAC DMA/WMAC/SCHEDULE/SEC block
+	 * Set CR bit10 to enable 32k calibration.
+	 * We do not set CR_MAC_TX_ENABLE | CR_MAC_RX_ENABLE here
+	 * due to a hardware bug in the 88E, requiring those to be
+	 * set after REG_TRXFF_BNDY is set. If not the RXFF bundary
+	 * will get set to a larger buffer size than the real buffer
+	 * size.
+	 */
+	val16 = (CR_HCI_TXDMA_ENABLE | CR_HCI_RXDMA_ENABLE |
+		 CR_TXDMA_ENABLE | CR_RXDMA_ENABLE |
+		 CR_PROTOCOL_ENABLE | CR_SCHEDULE_ENABLE |
+		 CR_SECURITY_ENABLE | CR_CALTIMER_ENABLE);
+	rtl8xxxu_write16(priv, REG_CR, val16);
 
 exit:
 	return ret;
