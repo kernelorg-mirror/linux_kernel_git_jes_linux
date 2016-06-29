@@ -223,8 +223,10 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.parse_efuse = rtl8188eu_parse_efuse,
 	.load_firmware = rtl8188eu_load_firmware,
 	.power_on = rtl8188eu_power_on,
+	.power_off = rtl8xxxu_power_off,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.usb_quirks = rtl8188e_usb_quirks,
+	.writeN_block_size = 128,
 	/*
 	 * Use 9K for 8188e normal chip
 	 * Max RX buffer = 10K - max(TxReportSize(64*8), WOLPattern(16*24))
