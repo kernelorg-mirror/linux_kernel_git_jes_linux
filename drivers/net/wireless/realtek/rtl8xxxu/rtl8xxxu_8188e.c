@@ -92,6 +92,15 @@ static int rtl8188eu_load_firmware(struct rtl8xxxu_priv *priv)
 	return ret;
 }
 
+static void rtl8188e_disabled_to_emu(struct rtl8xxxu_priv *priv)
+{
+	u16 val16;
+
+	val16 = rtl8xxxu_read16(priv, REG_APS_FSMCO);
+	val16 &= ~(APS_FSMCO_PFM_WOWL | APS_FSMCO_ENABLE_POWERDOWN);
+	rtl8xxxu_write16(priv, REG_APS_FSMCO, val16);
+}
+
 static int rtl8188e_emu_to_active(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
@@ -164,6 +173,8 @@ exit:
 static int rtl8188eu_power_on(struct rtl8xxxu_priv *priv)
 {
 	int ret;
+
+	rtl8188e_disabled_to_emu(priv);
 
 	ret = rtl8188e_emu_to_active(priv);
 	if (ret)
