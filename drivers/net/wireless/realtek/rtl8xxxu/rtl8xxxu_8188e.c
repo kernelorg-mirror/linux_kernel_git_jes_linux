@@ -200,9 +200,24 @@ exit:
 	return ret;
 }
 
+static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
+{
+	u16 val16;
+
+	/*
+	 * Technically this is not a USB quirk, but a chip quirk.
+	 * This has to be done after REG_TRXFF_BNDY is set, see
+	 * rtl8188eu_power_on() for details.
+	 */
+	val16 = rtl8xxxu_read16(priv, REG_CR);
+	val16 |= (CR_MAC_TX_ENABLE | CR_MAC_RX_ENABLE);
+	rtl8xxxu_write16(priv, REG_CR, val16);
+}
+
 struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.parse_efuse = rtl8188eu_parse_efuse,
 	.load_firmware = rtl8188eu_load_firmware,
 	.power_on = rtl8188eu_power_on,
 	.reset_8051 = rtl8xxxu_reset_8051,
+	.usb_quirks = rtl8188e_usb_quirks,
 };
