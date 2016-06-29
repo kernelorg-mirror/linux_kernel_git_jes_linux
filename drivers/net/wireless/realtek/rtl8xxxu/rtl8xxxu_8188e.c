@@ -225,4 +225,8 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.power_on = rtl8188eu_power_on,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.usb_quirks = rtl8188e_usb_quirks,
+	.total_page_num = TX_TOTAL_PAGE_NUM_8188E,
+	.page_num_hi = TX_PAGE_NUM_HI_PQ_8188E,
+	.page_num_lo = TX_PAGE_NUM_LO_PQ_8188E,
+	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8188E,
 };
