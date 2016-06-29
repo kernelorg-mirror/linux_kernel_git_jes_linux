@@ -203,6 +203,7 @@ exit:
 static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
 {
 	u16 val16;
+	u32 val32;
 
 	/*
 	 * Technically this is not a USB quirk, but a chip quirk.
@@ -212,6 +213,10 @@ static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
 	val16 = rtl8xxxu_read16(priv, REG_CR);
 	val16 |= (CR_MAC_TX_ENABLE | CR_MAC_RX_ENABLE);
 	rtl8xxxu_write16(priv, REG_CR, val16);
+
+	val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
+	val32 |= TXDMA_OFFSET_DROP_DATA_EN;
+	rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
 }
 
 struct rtl8xxxu_fileops rtl8188eu_fops = {
