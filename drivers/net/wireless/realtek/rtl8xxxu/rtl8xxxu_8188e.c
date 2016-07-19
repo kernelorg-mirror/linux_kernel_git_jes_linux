@@ -517,6 +517,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.power_on = rtl8188eu_power_on,
 	.power_off = rtl8xxxu_power_off,
 	.reset_8051 = rtl8xxxu_reset_8051,
+	.llt_init = rtl8xxxu_auto_llt_table,
 	.init_phy_bb = rtl8188eu_init_phy_bb,
 	.init_phy_rf = rtl8188eu_init_phy_rf,
 	.usb_quirks = rtl8188e_usb_quirks,
