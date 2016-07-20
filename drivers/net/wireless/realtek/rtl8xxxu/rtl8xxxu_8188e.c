@@ -522,6 +522,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.init_phy_rf = rtl8188eu_init_phy_rf,
 	.usb_quirks = rtl8188e_usb_quirks,
 	.writeN_block_size = 128,
+	.has_tx_report = 1,
 	/*
 	 * Use 9K for 8188e normal chip
 	 * Max RX buffer = 10K - max(TxReportSize(64*8), WOLPattern(16*24))
