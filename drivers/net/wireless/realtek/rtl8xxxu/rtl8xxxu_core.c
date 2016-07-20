@@ -4041,6 +4041,15 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (priv->rtl_chip == RTL8192E) {
 		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
 		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
+	} else if (priv->rtl_chip == RTL8188E) {
+		rtl8xxxu_write32(priv, REG_HISR0, 0xffffffff);
+		val32 = IMR0_PSTIMEOUT | IMR0_TBDER | IMR0_CPWM | IMR0_CPWM2;
+		rtl8xxxu_write32(priv, REG_HIMR0, val32);
+		val32 = IMR1_TXERR | IMR1_RXERR | IMR1_TXFOVW | IMR1_RXFOVW;
+		rtl8xxxu_write32(priv, REG_HIMR1, val32);
+		val8 = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
+		val8 |= USB_SPEC_INT_BULK_SELECT;
+		rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, val8);
 	} else {
 		/*
 		 * Enable all interrupts - not obvious USB needs to do this
