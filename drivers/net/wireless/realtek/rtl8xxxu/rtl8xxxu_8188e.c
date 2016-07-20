@@ -527,6 +527,8 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	 * Max RX buffer = 10K - max(TxReportSize(64*8), WOLPattern(16*24))
 	 */
 	.trxff_boundary = 0x23ff,
+	.pbp_rx = PBP_PAGE_SIZE_128,
+	.pbp_tx = PBP_PAGE_SIZE_128,
 	.mactable = rtl8188e_mac_init_table,
 	.total_page_num = TX_TOTAL_PAGE_NUM_8188E,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8188E,
