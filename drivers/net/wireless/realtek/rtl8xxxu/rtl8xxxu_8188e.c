@@ -526,6 +526,10 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc16),
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),
 	.has_tx_report = 1,
+	.adda_1t_init = 0x0b1b25a0,
+	.adda_1t_path_on = 0x0bdb25a0,
+	.adda_2t_path_on_a = 0x04db25a4,
+	.adda_2t_path_on_b = 0x0b1b25a4,
 	/*
 	 * Use 9K for 8188e normal chip
 	 * Max RX buffer = 10K - max(TxReportSize(64*8), WOLPattern(16*24))
