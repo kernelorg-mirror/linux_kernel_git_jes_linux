@@ -520,8 +520,11 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.llt_init = rtl8xxxu_auto_llt_table,
 	.init_phy_bb = rtl8188eu_init_phy_bb,
 	.init_phy_rf = rtl8188eu_init_phy_rf,
+	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
 	.usb_quirks = rtl8188e_usb_quirks,
 	.writeN_block_size = 128,
+	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc16),
+	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),
 	.has_tx_report = 1,
 	/*
 	 * Use 9K for 8188e normal chip
