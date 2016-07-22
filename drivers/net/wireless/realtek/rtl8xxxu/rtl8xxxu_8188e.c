@@ -1101,6 +1101,20 @@ static void rtl8188e_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
+static void rtl8188e_disable_rf(struct rtl8xxxu_priv *priv)
+{
+	u32 val32;
+
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TRX_PATH_ENABLE);
+	val32 &= ~OFDM_RF_PATH_TX_MASK;
+	rtl8xxxu_write32(priv, REG_OFDM0_TRX_PATH_ENABLE, val32);
+
+	/* Power down RF module */
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_AC, 0);
+	if (priv->rf_paths == 2)
+		rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_AC, 0);
+}
+
 static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
 {
 	u16 val16;
@@ -1133,6 +1147,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.config_channel = rtl8188eu_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
 	.enable_rf = rtl8188e_enable_rf,
+	.disable_rf = rtl8188e_disable_rf,
 	.usb_quirks = rtl8188e_usb_quirks,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
