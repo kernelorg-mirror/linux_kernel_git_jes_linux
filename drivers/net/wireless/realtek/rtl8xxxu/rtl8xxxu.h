@@ -881,11 +881,8 @@ struct rtl8192eu_efuse {
 struct rtl8188eu_efuse {
 	__le16 rtl_id;
 	u8 res0[0x0e];
-	u8 cck_tx_power_index_A[3];	/* 0x10 */
-	u8 cck_tx_power_index_B[3];
-	u8 ht40_1s_tx_power_index_A[3];	/* 0x16 */
-	u8 ht40_1s_tx_power_index_B[3];
-	u8 res1[0x9c];
+	struct rtl8192eu_efuse_tx_power tx_power_index_A;	/* 0x10 */
+	u8 res1[0x7e];			/* 0x3a */
 	u8 channel_plan;		/* 0xb8 */
 	u8 xtal_k;
 	u8 thermal_meter;

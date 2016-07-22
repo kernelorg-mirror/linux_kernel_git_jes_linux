@@ -409,17 +409,20 @@ static int rtl8188eu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	ether_addr_copy(priv->mac_addr, efuse->mac_addr);
 
-	memcpy(priv->cck_tx_power_index_A, efuse->cck_tx_power_index_A,
-	       sizeof(efuse->cck_tx_power_index_A));
-	memcpy(priv->cck_tx_power_index_B, efuse->cck_tx_power_index_B,
-	       sizeof(efuse->cck_tx_power_index_B));
+	memcpy(priv->cck_tx_power_index_A, efuse->tx_power_index_A.cck_base,
+	       sizeof(efuse->tx_power_index_A.cck_base));
+	/*
+	 * Efuse is empty for path B, so copy in values from path A
+	 */
+	memcpy(priv->cck_tx_power_index_B, efuse->tx_power_index_A.cck_base,
+	       sizeof(efuse->tx_power_index_A.cck_base));
 
 	memcpy(priv->ht40_1s_tx_power_index_A,
-	       priv->efuse_wifi.efuse8188eu.ht40_1s_tx_power_index_A,
-	       sizeof(priv->ht40_1s_tx_power_index_A));
+	       efuse->tx_power_index_A.ht40_base,
+	       sizeof(efuse->tx_power_index_A.ht40_base));
 	memcpy(priv->ht40_1s_tx_power_index_B,
-	       priv->efuse_wifi.efuse8188eu.ht40_1s_tx_power_index_B,
-	       sizeof(priv->ht40_1s_tx_power_index_B));
+	       efuse->tx_power_index_A.ht40_base,
+	       sizeof(efuse->tx_power_index_A.ht40_base));
 
 	priv->xtalk = priv->efuse_wifi.efuse8188eu.xtal_k & 0x3f;
 
