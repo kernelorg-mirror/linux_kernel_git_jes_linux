@@ -1096,6 +1096,11 @@ exit:
 	return ret;
 }
 
+static void rtl8188e_enable_rf(struct rtl8xxxu_priv *priv)
+{
+	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
+}
+
 static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
 {
 	u16 val16;
@@ -1127,6 +1132,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.phy_iq_calibrate = rtl8188eu_phy_iq_calibrate,
 	.config_channel = rtl8188eu_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
+	.enable_rf = rtl8188e_enable_rf,
 	.usb_quirks = rtl8188e_usb_quirks,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
