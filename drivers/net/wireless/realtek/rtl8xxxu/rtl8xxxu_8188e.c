@@ -539,7 +539,6 @@ static int rtl8188eu_load_firmware(struct rtl8xxxu_priv *priv)
 
 	ret = rtl8xxxu_load_firmware(priv, fw_name);
 
-	return -EINVAL;
 	return ret;
 }
 
