@@ -1683,7 +1683,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 		}
 		priv->has_wifi = 1;
 	} else {
-		if (priv->chip_cut >= 2) {
+		if (priv->fops->has_tx_report) {
 			sprintf(priv->chip_name, "8188EU");
 			priv->rf_paths = 1;
 			priv->rx_paths = 1;
