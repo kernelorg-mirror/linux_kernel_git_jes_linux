@@ -461,6 +461,19 @@ void rtl8188eu_config_channel(struct ieee80211_hw *hw)
 	}
 }
 
+void rtl8188eu_init_aggregation(struct rtl8xxxu_priv *priv)
+{
+	u8 agg_ctrl, usb_spec;
+
+	usb_spec = rtl8xxxu_read8(priv, REG_USB_SPECIAL_OPTION);
+	usb_spec &= ~USB_SPEC_USB_AGG_ENABLE;
+	rtl8xxxu_write8(priv, REG_USB_SPECIAL_OPTION, usb_spec);
+
+	agg_ctrl = rtl8xxxu_read8(priv, REG_TRXDMA_CTRL);
+	agg_ctrl &= ~TRXDMA_CTRL_RXDMA_AGG_EN;
+	rtl8xxxu_write8(priv, REG_TRXDMA_CTRL, agg_ctrl);
+}
+
 static int rtl8188eu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8188eu_efuse *efuse = &priv->efuse_wifi.efuse8188eu;
@@ -1223,6 +1236,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.phy_iq_calibrate = rtl8188eu_phy_iq_calibrate,
 	.config_channel = rtl8188eu_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
+	.init_aggregation = rtl8188eu_init_aggregation,
 	.enable_rf = rtl8188e_enable_rf,
 	.disable_rf = rtl8188e_disable_rf,
 	.usb_quirks = rtl8188e_usb_quirks,
