@@ -4105,11 +4105,16 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_EDCA_VI_PARAM, 0x005ea324);
 	rtl8xxxu_write32(priv, REG_EDCA_VO_PARAM, 0x002fa226);
 
-	/* Set data auto rate fallback retry count */
-	rtl8xxxu_write32(priv, REG_DARFRC, 0x00000000);
-	rtl8xxxu_write32(priv, REG_DARFRC + 4, 0x10080404);
-	rtl8xxxu_write32(priv, REG_RARFRC, 0x04030201);
-	rtl8xxxu_write32(priv, REG_RARFRC + 4, 0x08070605);
+	/*
+	 * Set data auto rate fallback retry count.
+	 * Notably the 8188eu doesn't seem to use this
+	 */
+	if (fops->has_darfrc) {
+		rtl8xxxu_write32(priv, REG_DARFRC, 0x00000000);
+		rtl8xxxu_write32(priv, REG_DARFRC + 4, 0x10080404);
+		rtl8xxxu_write32(priv, REG_RARFRC, 0x04030201);
+		rtl8xxxu_write32(priv, REG_RARFRC + 4, 0x08070605);
+	}
 
 	val8 = rtl8xxxu_read8(priv, REG_FWHW_TXQ_CTRL);
 	val8 |= FWHW_TXQ_CTRL_AMPDU_RETRY;
