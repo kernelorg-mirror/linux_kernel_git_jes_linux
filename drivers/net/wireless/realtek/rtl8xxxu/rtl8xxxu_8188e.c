@@ -1155,6 +1155,42 @@ exit:
 	return ret;
 }
 
+static int rtl8188eu_active_to_emu(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	int count, ret = 0;
+
+	/* Turn off RF */
+	rtl8xxxu_write8(priv, REG_RF_CTRL, 0);
+
+	/* LDO Sleep mode */
+	val8 = rtl8xxxu_read8(priv, REG_LPLDO_CTRL);
+	val8 |= BIT(4);
+	rtl8xxxu_write8(priv, REG_LPLDO_CTRL, val8);
+
+	/* 0x0005[1] = 1 turn off MAC by HW state machine*/
+	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
+	val8 |= BIT(1);
+	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+
+	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
+		val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
+		if ((val8 & BIT(1)) == 0)
+			break;
+		udelay(10);
+	}
+
+	if (!count) {
+		dev_warn(&priv->udev->dev, "%s: Disabling MAC timed out\n",
+			 __func__);
+		ret = -EBUSY;
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
 static int rtl8188eu_power_on(struct rtl8xxxu_priv *priv)
 {
 	u16 val16;
@@ -1202,6 +1238,8 @@ static void rtl8188e_disable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_AC, 0);
 	if (priv->rf_paths == 2)
 		rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_AC, 0);
+
+	rtl8188eu_active_to_emu(priv);
 }
 
 static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
