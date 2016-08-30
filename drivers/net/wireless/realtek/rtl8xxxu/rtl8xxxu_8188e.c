@@ -1394,6 +1394,9 @@ static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
 	val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
 	val32 |= TXDMA_OFFSET_DROP_DATA_EN;
 	rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
+
+	/* Pre-TX enable WEP/TKIP security */
+	rtl8xxxu_write8(priv, REG_EARLY_MODE_CONTROL_8188E + 3, 0x01);
 }
 
 struct rtl8xxxu_fileops rtl8188eu_fops = {
