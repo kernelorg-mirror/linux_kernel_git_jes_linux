@@ -561,6 +561,7 @@ static void rtl8188eu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
 	val16 |= (SYS_FUNC_USBA | SYS_FUNC_USBD |
 		  SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB);
+	val16 &= ~SYS_FUNC_UPLL;
 	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
 
 	rtl8xxxu_init_phy_regs(priv, rtl8188eu_phy_init_table);
