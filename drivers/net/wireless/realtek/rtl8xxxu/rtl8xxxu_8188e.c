@@ -1083,7 +1083,8 @@ static void rtl8188e_disabled_to_emu(struct rtl8xxxu_priv *priv)
 	u16 val16;
 
 	val16 = rtl8xxxu_read16(priv, REG_APS_FSMCO);
-	val16 &= ~(APS_FSMCO_PFM_WOWL | APS_FSMCO_ENABLE_POWERDOWN);
+	val16 &= ~(APS_FSMCO_PFM_WOWL | APS_FSMCO_ENABLE_POWERDOWN |
+		APS_FSMCO_HW_POWERDOWN);
 	rtl8xxxu_write16(priv, REG_APS_FSMCO, val16);
 }
 
@@ -1196,14 +1197,25 @@ static int rtl8188eu_emu_to_disabled(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 
-	/* 0x04[12:11] = 01 enable WL suspend */
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 2);
-	val8 &= ~BIT(0);
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 2, val8);
+	val8 = rtl8xxxu_read8(priv, REG_AFE_XTAL_CTRL + 2);
+	val8 |= BIT(7);
+	rtl8xxxu_write8(priv, REG_AFE_XTAL_CTRL + 2, val8);
 
 	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-	val8 |= BIT(7);
+	val8 &= ~(BIT(3) | BIT(4));
+	val8 |= BIT(3);
 	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+
+	rtl8xxxu_write8(priv, REG_APS_FSMCO + 3, 0x00);
+
+	val8 = rtl8xxxu_read8(priv, REG_GPIO_MUXCFG + 1);
+	val8 &= ~BIT(4);
+	rtl8xxxu_write8(priv, REG_GPIO_MUXCFG + 1, val8);
+
+	/* Set USB suspend enable local register 0xfe10[4]=1 */
+	val8 = rtl8xxxu_read8(priv, 0xfe10);
+	val8 |= BIT(4);
+	rtl8xxxu_write8(priv, 0xfe10, val8);
 
 	return 0;
 }
@@ -1339,7 +1351,7 @@ void rtl8188eu_power_off(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_GPIO_PIN_CTRL + 2, 0xff);
 
 	val8 = rtl8xxxu_read8(priv, REG_GPIO_IO_SEL);
-	rtl8xxxu_write8(priv, REG_GPIO_IO_SEL + 1, val8 << 4);
+	rtl8xxxu_write8(priv, REG_GPIO_IO_SEL, val8 << 4);
 	val8 = rtl8xxxu_read8(priv, REG_GPIO_IO_SEL + 1);
 	rtl8xxxu_write8(priv, REG_GPIO_IO_SEL + 1, val8 | 0x0f);
 
