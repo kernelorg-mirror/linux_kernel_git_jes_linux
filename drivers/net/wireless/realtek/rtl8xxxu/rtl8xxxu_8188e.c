@@ -1363,6 +1363,8 @@ void rtl8188eu_power_off(struct rtl8xxxu_priv *priv)
 
 	rtl8xxxu_write8(priv, REG_RSV_CTRL, 0x00);
 
+	rtl8xxxu_write32(priv, REG_GPIO_MUXCFG, 0x00000000);
+
 	val16 = rtl8xxxu_read16(priv, REG_APS_FSMCO);
 	val16 |= APS_FSMCO_ENABLE_POWERDOWN | APS_FSMCO_HW_POWERDOWN;
 	rtl8xxxu_write16(priv, REG_APS_FSMCO, val16);
