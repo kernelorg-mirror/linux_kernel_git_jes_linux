@@ -1411,6 +1411,7 @@ struct rtl8xxxu_fileops {
 	u8 page_num_hi;
 	u8 page_num_lo;
 	u8 page_num_norm;
+	u8 last_llt_entry;
 };
 
 extern int rtl8xxxu_debug;
