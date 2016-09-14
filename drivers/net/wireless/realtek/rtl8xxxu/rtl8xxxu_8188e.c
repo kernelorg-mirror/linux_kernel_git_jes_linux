@@ -1160,37 +1160,18 @@ exit:
 static int rtl8188eu_active_to_emu(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
-	int count, ret = 0;
 
 	/* Turn off RF */
-	rtl8xxxu_write8(priv, REG_RF_CTRL, 0);
+	val8 = rtl8xxxu_read8(priv, REG_RF_CTRL);
+	val8 &= ~RF_ENABLE;
+	rtl8xxxu_write8(priv, REG_RF_CTRL, val8);
 
 	/* LDO Sleep mode */
 	val8 = rtl8xxxu_read8(priv, REG_LPLDO_CTRL);
 	val8 |= BIT(4);
 	rtl8xxxu_write8(priv, REG_LPLDO_CTRL, val8);
 
-	/* 0x0005[1] = 1 turn off MAC by HW state machine*/
-	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-	val8 |= BIT(1);
-	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
-
-	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
-		val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
-		if ((val8 & BIT(1)) == 0)
-			break;
-		udelay(10);
-	}
-
-	if (!count) {
-		dev_warn(&priv->udev->dev, "%s: Disabling MAC timed out\n",
-			 __func__);
-		ret = -EBUSY;
-		goto exit;
-	}
-
-exit:
-	return ret;
+	return 0;
 }
 
 static int rtl8188eu_emu_to_disabled(struct rtl8xxxu_priv *priv)
@@ -1372,6 +1353,8 @@ void rtl8188eu_power_off(struct rtl8xxxu_priv *priv)
 
 static void rtl8188e_enable_rf(struct rtl8xxxu_priv *priv)
 {
+	rtl8xxxu_write8(priv, REG_RF_CTRL, RF_ENABLE | RF_RSTB | RF_SDMRSTB);
+
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
