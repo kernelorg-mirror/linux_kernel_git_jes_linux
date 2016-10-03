@@ -1353,7 +1353,21 @@ void rtl8188eu_power_off(struct rtl8xxxu_priv *priv)
 
 static void rtl8188e_enable_rf(struct rtl8xxxu_priv *priv)
 {
+	u32 val32;
+
 	rtl8xxxu_write8(priv, REG_RF_CTRL, RF_ENABLE | RF_RSTB | RF_SDMRSTB);
+
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TRX_PATH_ENABLE);
+	val32 &= ~(OFDM_RF_PATH_RX_MASK | OFDM_RF_PATH_TX_MASK);
+	if (priv->rx_paths == 2)
+		val32 |= OFDM_RF_PATH_RX_A | OFDM_RF_PATH_RX_B;
+	else
+		val32 |= OFDM_RF_PATH_RX_A;
+	if (priv->tx_paths == 2)
+		val32 |= OFDM_RF_PATH_TX_A | OFDM_RF_PATH_TX_B;
+	else
+		val32 |= OFDM_RF_PATH_TX_A;
+	rtl8xxxu_write32(priv, REG_OFDM0_TRX_PATH_ENABLE, val32);
 
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
