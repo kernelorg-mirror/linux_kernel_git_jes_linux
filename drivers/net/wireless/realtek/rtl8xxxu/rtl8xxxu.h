@@ -161,7 +161,8 @@ struct rtl8xxxu_rxdesc16 {
 	u32 htc:1;
 	u32 eosp:1;
 	u32 bssidfit:2;
-	u32 reserved1:16;
+	u32 rpt_sel:2;		/* 8188e */
+	u32 reserved1:14;
 	u32 unicastwake:1;
 	u32 magicwake:1;
 
@@ -219,7 +220,8 @@ struct rtl8xxxu_rxdesc16 {
 
 	u32 magicwake:1;
 	u32 unicastwake:1;
-	u32 reserved1:16;
+	u32 reserved1:14;
+	u32 rpt_sel:2;		/* 8188e */
 	u32 bssidfit:2;
 	u32 eosp:1;
 	u32 htc:1;
